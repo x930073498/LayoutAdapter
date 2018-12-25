@@ -1,93 +1,182 @@
 package com.x930073498.lib.layout
 
+import android.app.Activity
+import android.arch.lifecycle.DefaultLifecycleObserver
 import android.arch.lifecycle.LifecycleOwner
 import android.support.v4.app.Fragment
-import android.support.v4.app.FragmentActivity
 import android.view.View
 
 /**
- * Created by x930073498 on 2018/10/11.
+ * Created by x930073498 on 2018/12/24.
  */
-class LayoutHelper private constructor(private val adapter: LayoutAdapter) {
+class LayoutHelper private constructor(private val view: ViewProvider, private val adapter: LayoutAdapter, private val hasLifecycle: Boolean) {
 
-    private var view: Any? = null
+    private var id = System.currentTimeMillis().toString()
 
-    fun getView(): View? {
-        return when (view) {
-            is View -> view as View
-            is Fragment -> getView(view as Fragment)
-            is FragmentActivity -> getView(view as FragmentActivity)
-            else -> null
-        }
+    init {
+        adapter.setHelper(this)
     }
 
-
-    fun push(item: LayoutItem) {
-        adapter.push(item)
+    fun setId(id: String) {
+        this.id = id
     }
 
+    private var tag: Any? = null
+    private val contentView: View
+        get() = view.getView()
 
-    fun push(id: Int, data: Any?) {
-        adapter.push(id, data)
-    }
-
-    fun pushIndex(index: Int, data: Any?) {
-        adapter.pushIndex(index, data)
-    }
-
-    fun <T> pushData(data: T, clazz: Class<T>) {
-        adapter.pushData(data, clazz)
-    }
-
-    inline fun <reified T> pushData(data: T) {
-        pushData(data, T::class.java)
-    }
-
-    fun push() {
-        adapter.push()
-    }
 
     fun getAdapter(): LayoutAdapter {
         return adapter
     }
 
-    private fun getView(fragment: Fragment): View? {
-        if (this.view is View) return view as View
-        return (fragment.view)?.apply { this@LayoutHelper.view = this }
+    fun destroy() {
+        tag = null
+        list.remove(this)
     }
 
-    private fun getView(activity: FragmentActivity): View? {
-        if (this.view is View) return view as View
-        return (activity.window.decorView.findViewById<View>(android.R.id.content))?.apply {
-            this@LayoutHelper.view = this
+    fun push(id: String, data: Any?) {
+        adapter.push(id, data)
+    }
+
+    fun push(data: Any?) {
+        adapter.push(data)
+    }
+
+    fun register(id: String, item: LayoutItem) {
+        adapter.register(id, item)
+    }
+
+    fun register(item: LayoutItem): String {
+        return adapter.register(item)
+    }
+
+    fun unregister(item: LayoutItem) {
+        adapter.unregister(item)
+    }
+
+    fun unregister(id: String) {
+        adapter.unregister(id)
+    }
+
+
+    fun getId(item: LayoutItem): String? {
+        return adapter.getId(item)
+    }
+
+    fun getId(): String {
+        return id
+    }
+
+    private fun addLifecycle() {
+        if (hasLifecycle) return
+        contentView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View?) {
+            }
+
+            override fun onViewDetachedFromWindow(v: View?) {
+                destroy()
+            }
+        })
+    }
+
+    internal fun getViewProvider(): ViewProvider {
+        return view.apply {
+            addLifecycle()
         }
     }
 
+    internal fun getLifecycleOwner(): LifecycleOwner? {
+        return tag as? LifecycleOwner ?: getInternalLifecycleOwner()
+    }
+
+    private fun getInternalLifecycleOwner(): LifecycleOwner? {
+       return null
+    }
 
     companion object {
-        fun attach(view: View, adapter: LayoutAdapter, owner: LifecycleOwner? = null): LayoutHelper {
-            return attach(adapter, view).apply {
-                if (owner != null) getAdapter().setLifecycle(owner)
+        private val list by lazy {
+            mutableListOf<LayoutHelper>()
+        }
+
+        fun destroy(any: Any) {
+            list.find { it.tag == any }?.destroy()
+        }
+
+        fun destroyById(id: String) {
+            get(id)?.destroy()
+        }
+
+        @Synchronized
+        fun attach(activity: Activity): LayoutHelper {
+            return list.find { it.tag == activity } ?: LayoutHelper(object : ViewProvider {
+                override fun getView(): View {
+                    return activity.findViewById<View>(android.R.id.content)
+                }
+            }, LayoutAdapter(), true).apply {
+                if (activity is LifecycleOwner) {
+                    activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
+                        override fun onDestroy(owner: LifecycleOwner) {
+                            destroy()
+                        }
+                    })
+                }
+                tag = activity
+                list.add(this)
             }
         }
 
-        fun attach(fragment: Fragment, adapter: LayoutAdapter? = null): LayoutHelper {
-            return attach(adapter, fragment).apply { getAdapter().setLifecycle(fragment) }
-        }
+        @Synchronized
+        fun attach(view: View): LayoutHelper {
+            return list.find { it.tag == view } ?: LayoutHelper(object : ViewProvider {
+                override fun getView(): View {
+                    return view
+                }
+            }, LayoutAdapter(), true).apply {
+                view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                    override fun onViewDetachedFromWindow(v: View?) {
+                        destroy()
+                    }
 
-        fun attach(activity: FragmentActivity, adapter: LayoutAdapter? = null): LayoutHelper {
-            return attach(adapter, activity).apply {
-                getAdapter().setLifecycle(activity)
+                    override fun onViewAttachedToWindow(v: View?) {
+                    }
+
+                })
+                tag = view
+                list.add(this)
             }
         }
 
-        private fun attach(adapter: LayoutAdapter? = null, view: Any): LayoutHelper {
-
-            return LayoutHelper(adapter ?: LayoutAdapter()).apply {
-                this.view = view
-                getAdapter().setHelper(this)
+        @Synchronized
+        fun attach(fragment: Fragment): LayoutHelper {
+            return list.find { it.tag == fragment } ?: LayoutHelper(object : ViewProvider {
+                override fun getView(): View {
+                    return fragment.view!!
+                }
+            }, LayoutAdapter(), true).apply {
+                fragment.lifecycle.addObserver(object : DefaultLifecycleObserver {
+                    override fun onDestroy(owner: LifecycleOwner) {
+                        destroy()
+                    }
+                })
+                tag = fragment
+                list.add(this)
             }
         }
+
+        @Synchronized
+        fun attach(view: ViewProvider): LayoutHelper {
+            return list.find { it.tag == view }
+                    ?: LayoutHelper(view, LayoutAdapter(), false).apply {
+                        tag = view
+                        list.add(this)
+                    }
+        }
+
+        fun get(id: String): LayoutHelper? {
+            return list.find { it.id == id }
+        }
+
+
     }
-
 }

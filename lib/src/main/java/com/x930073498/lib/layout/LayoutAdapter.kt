@@ -1,177 +1,82 @@
 package com.x930073498.lib.layout
 
-import android.arch.lifecycle.LifecycleOwner
-import android.arch.lifecycle.MutableLiveData
-import android.arch.lifecycle.Observer
-import android.view.View
-
 /**
- * Created by x930073498 on 2018/10/11.
+ * Created by x930073498 on 2018/12/24.
  */
-class LayoutAdapter {
+class LayoutAdapter internal constructor() {
+
     private lateinit var helper: LayoutHelper
-    private var owner: LifecycleOwner? = null
-    private val binders by lazy {
-        mutableListOf<Binder>()
+    private val map by lazy {
+        mutableMapOf<String, LayoutItem>()
     }
-
-    fun getCount(): Int {
-        return binders.size
-    }
-
-    fun getItemPosition(item: LayoutItem): Int {
-        binders.forEachIndexed { index, binder ->
-            if (binder.item == item) return index
-        }
-        return -1
-    }
-
-    fun getData(index: Int): Any? {
-        if (index < 0 || index >= binders.size) return null
-        return binders[index].getData()
-    }
-
-    fun getHolder(index: Int): LayoutHolder? {
-        if (index >= binders.size || index < 0) return null
-        return binders[index].holder
-    }
-
-
-    internal fun setLifecycle(owner: LifecycleOwner) {
-        this.owner = owner
-    }
-
-    internal fun push(id: Int, data: Any?) {
-        binders.forEach {
-            if (id == it.getId()) {
-                it.set(data)
-                return@forEach
-            }
-        }
-    }
-
-    internal fun pushIndex(index: Int, data: Any?) {
-        if (index < 0 || index >= binders.size) return
-        push(binders[index], data)
-    }
-
-    internal fun push() {
-        binders.forEach {
-            it.set()
-        }
-    }
-
-
-    internal fun push(item: LayoutItem) {
-        binders.forEach {
-            if (item == it.item) {
-                it.set(item.getData())
-                return
-            }
-        }
-        binders.add(Binder(item, owner).apply { set() })
-    }
-
-    internal fun push(item: LayoutItem, data: Any?) {
-        binders.forEach {
-            if (item == it.item) {
-                it.set(data)
-                return
-            }
-        }
-        binders.add(Binder(item, owner).apply { set(data) })
-    }
-
-    internal fun <T> pushData(data: T, clazz: Class<T>) {
-        binders.forEach {
-            if (clazz.isInstance(it.getData())) {
-                it.set(data)
-            }
-        }
+    private val holderMap by lazy {
+        mutableMapOf<String, LayoutHolder>()
     }
 
     internal fun setHelper(helper: LayoutHelper) {
         this.helper = helper
-        if (helper.getView() == null) return
     }
 
-    inner class Binder constructor(internal val item: LayoutItem, owner: LifecycleOwner? = null) : LayoutItem, Comparable<Binder> {
+    internal fun getItems(): List<LayoutItem> {
+        return map.map { it.value }
+    }
+    fun getIds():List<String>{
+       return map.map { it.key }
+    }
 
-        internal var type: Class<*>? = null
-        private fun getType() {
-            type = type ?: liveData.value?.javaClass
-        }
+    @Suppress("UNCHECKED_CAST")
+    internal fun push(id: String, data: Any?) {
+        map[id]?.let {
+            it.takeIf {
+                it.filter(data)
+            }?.run { getHolder(id).push(id, data, it) }
 
-        override fun compareTo(other: Binder): Int {
-            return getId().compareTo(other.getId())
-        }
-
-
-        override fun hashCode(): Int {
-            return getId()
-        }
-
-        override fun equals(other: Any?): Boolean {
-            return other is Binder && other.getId() == getId()
-        }
-
-        override fun provideId(adapter: LayoutAdapter, helper: LayoutHelper, parent: View, data: Any?): Int {
-            return item.provideId(adapter, helper, parent, data)
-        }
-
-        override fun bindData(adapter: LayoutAdapter, helper: LayoutHelper, holder: LayoutHolder, data: Any?, owner: LifecycleOwner?) {
-            item.bindData(adapter, helper, holder, data, owner)
-        }
-
-        override fun getData(): Any? {
-            return liveData.value
-        }
-
-        private val liveData = MutableLiveData<Any>()
-        internal val holder by lazy {
-            createHolder()
-        }
-
-        init {
-            if (owner != null) {
-                liveData.observe(owner, Observer {
-                    getType()
-                    bindData(this@LayoutAdapter, helper, holder, it, owner)
-                })
-            } else {
-                liveData.observeForever {
-                    getType()
-                    bindData(this@LayoutAdapter, helper, holder, it, owner)
-                }
-            }
-        }
-
-        private fun createHolder(): LayoutHolder {
-            val parent = helper.getView()
-            val view = parent?.findViewById<View>(item.provideId(this@LayoutAdapter, helper, parent, getData()))
-            return LayoutHolder(parent, view)
-        }
-
-        internal fun post(data: Any?) {
-            liveData.postValue(data)
-        }
-
-        internal fun post() {
-            post(item.getData())
-        }
-
-        internal fun set(data: Any?) {
-            liveData.value = data
-        }
-
-        internal fun set() {
-            set(item.getData())
-        }
-
-
-        internal fun getId(): Int {
-            val parent = holder.getParent() ?: return 0
-            return provideId(this@LayoutAdapter, helper, parent, getData())
         }
     }
+
+
+    private fun getHolder(id: String): LayoutHolder {
+        return holderMap[id] ?: LayoutHolder(helper.getViewProvider(), helper, this).apply {
+            lifecycleOwner = helper.getLifecycleOwner()
+        }
+    }
+
+
+    @Suppress("UNCHECKED_CAST")
+    internal fun push(data: Any?) {
+        map.filter { it.value.filter(data) }
+                .map { getHolder(it.key).push(it.key, data, it.value) }
+    }
+
+    internal fun register(id: String, item: LayoutItem) {
+        map[id] = item
+        holderMap[id] = LayoutHolder(helper.getViewProvider(), helper, this).apply {
+            lifecycleOwner = helper.getLifecycleOwner()
+        }
+    }
+
+    @Synchronized
+    internal fun register(item: LayoutItem): String {
+        val id = System.currentTimeMillis().toString()
+        map[id] = item
+        holderMap[id] = LayoutHolder(helper.getViewProvider(), helper, this).apply {
+            lifecycleOwner = helper.getLifecycleOwner()
+        }
+        return id
+    }
+
+    internal fun getId(item: LayoutItem): String? {
+        return map.asIterable().find { it.value == item }?.key
+    }
+
+    internal fun unregister(id: String) {
+        map.remove(id)
+    }
+
+    internal fun unregister(item: LayoutItem) {
+        val id = getId(item) ?: return
+        map.remove(id)
+    }
+
+
 }

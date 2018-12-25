@@ -3,24 +3,27 @@ package com.x930073498.layoutadapter
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import com.x930073498.lib.layout.LayoutHelper
-import com.x930073498.lib.layout.LayoutItemWrapper
 
 class MainActivity : AppCompatActivity() {
-    private val mainTextItem by lazy {
-        LayoutItemWrapper.wrap("first", HomeMainTextItem())
-    }
-    private val secondTextItem by lazy {
-        LayoutItemWrapper.wrap("second", HomeSecondTextItem())
-    }
     private val helper by lazy {
-        LayoutHelper.attach(this)
+        LayoutHelper.attach(this).apply {
+            register("",TestLayoutItem())
+            register("1",TestIntListLayoutItem())
+            register("2",TestStringListLayoutItem())
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        helper.push(mainTextItem)
-        helper.push(secondTextItem)
         setContentView(R.layout.activity_main)
+
+        helper.push("测试2")
+
+//        helper.unregister("")
+        helper.push("测试3")
+//        helper.push("2","测试3")
+//        helper.push(arrayListOf("测试3"))
+
     }
 
 }

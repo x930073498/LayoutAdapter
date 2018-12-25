@@ -9,5 +9,6 @@ import com.x930073498.lib.recycler.CommonAdapter
  */
 
 interface DataBinder {
+
     fun bindData(adapter:  RecyclerView.Adapter<*>, holder: CommonAdapter.CommonViewHolder, data: Any?, position: Int, source: List<BaseItem>)
 }
