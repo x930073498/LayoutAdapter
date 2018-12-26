@@ -5,7 +5,6 @@ import android.arch.lifecycle.LifecycleOwner
 import android.support.v4.app.Fragment
 import android.view.View
 import android.view.ViewGroup
-import java.util.function.Predicate
 
 @Suppress("UNCHECKED_CAST")
 /**
@@ -23,6 +22,7 @@ object ViewFinder {
             return findFromAnchor(parent as View, clazz, filter)
         return null
     }
+
    inline fun <reified T : View> findFromAnchor(anchor: View?,filter: Predicate<T> = Predicate { true }): T? {
         return findFromAnchor(anchor,T::class.java,filter)
     }

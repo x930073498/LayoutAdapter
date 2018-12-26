@@ -16,7 +16,7 @@ class TestStringListLayoutItem : LayoutItem {
     }
 
     override fun bind(helper: LayoutHelper, adapter: LayoutAdapter, holder: LayoutHolder, data: Any?, id: String, items: List<LayoutItem>) {
-        println(javaClass)
+
     }
 
 

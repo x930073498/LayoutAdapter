@@ -31,7 +31,6 @@ class TestLayoutItem : LayoutItem {
                     }
                 })
             }
-            println(javaClass)
         }
 
 

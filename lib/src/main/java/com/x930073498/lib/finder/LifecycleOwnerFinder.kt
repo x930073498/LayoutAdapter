@@ -4,7 +4,6 @@ import android.app.Application
 import android.app.Service
 import android.arch.lifecycle.LifecycleOwner
 import android.content.Context
-import android.support.v7.app.AppCompatActivity
 import android.view.View
 
 /**

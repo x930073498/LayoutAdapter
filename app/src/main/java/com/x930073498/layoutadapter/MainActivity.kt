@@ -14,24 +14,25 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-         view = layoutInflater.inflate(R.layout.activity_main, null, false)
+        view = layoutInflater.inflate(R.layout.activity_main, null, false)
         setContentView(view)
-        LayoutHelper.attach(view).apply {
+        val helper = LayoutHelper.attach(view).apply {
             register("", TestLayoutItem())
             register("1", TestIntListLayoutItem())
             register("2", TestStringListLayoutItem())
-        }.setId("test")
-//        helper.push("测试2")
+        }
+        helper.pull()
+        helper.setId("test")
+        helper.pull()
+
+
+
+//        helper.pull("测试2")
 
 //        helper.unregister("")
-//        helper.push("测试3")
-//        helper.push("2","测试3")
-//        helper.push(arrayListOf("测试3"))
-
+//        helper.pull("测试3")
+//        helper.pull("2","测试3")
+//        helper.pull(arrayListOf("测试3"))
     }
 
-    override fun onResume() {
-        super.onResume()
-
-    }
 }

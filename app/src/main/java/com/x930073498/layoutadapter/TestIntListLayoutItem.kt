@@ -17,7 +17,6 @@ class TestIntListLayoutItem : LayoutItem {
     }
 
     override fun bind(helper: LayoutHelper, adapter: LayoutAdapter, holder: LayoutHolder, data: Any?, id: String, items: List<LayoutItem>) {
-        Log.e("test", "enter this line 1")
     }
 
 

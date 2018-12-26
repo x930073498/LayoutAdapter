@@ -1,8 +1,5 @@
 package com.x930073498.lib.finder;
 
-import android.os.Build;
-import android.support.annotation.RequiresApi;
-
 import java.util.Objects;
 
 public interface Predicate<T> {
