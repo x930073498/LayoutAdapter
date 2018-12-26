@@ -1,5 +1,8 @@
 package com.x930073498.lib.recycler
 
+import android.app.Activity
+import android.arch.lifecycle.LifecycleObserver
+import android.arch.lifecycle.LifecycleOwner
 import android.content.Context
 import android.support.v4.util.ArrayMap
 import android.support.v7.widget.RecyclerView
@@ -7,6 +10,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.x930073498.lib.R
+import com.x930073498.lib.finder.ActivityFinder
+import com.x930073498.lib.finder.LifecycleOwnerFinder
+import org.jetbrains.anko.attempt
+import java.lang.ref.WeakReference
 
 
 /**
@@ -14,15 +21,18 @@ import com.x930073498.lib.R
  */
 
 class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
+    override fun onBindViewHolder(p0: CommonViewHolder, p1: Int) {
+        onBindViewHolder(p0, p1, arrayListOf())
+    }
 
     private var data = arrayListOf<BaseItem>()
 
     private val visibleMap = ArrayMap<BaseItem, Boolean>()
 
-    private var onDataBind: ((Int) -> Unit)? = null
+    private var onDataBind: ((CommonViewHolder, Int) -> Unit)? = null
 
 
-    fun setBindListener(listener: (Int) -> Unit) {
+    fun setBindListener(listener: (CommonViewHolder, Int) -> Unit) {
         this.onDataBind = listener
     }
 
@@ -44,21 +54,30 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
         get() = data.isEmpty()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CommonViewHolder {
-        val inflater = LayoutInflater.from(parent.context)
-        val view = inflater.inflate(if (viewType == TYPE_NO_LAYOUT) R.layout.layout_space else viewType, parent, false)
-        return CommonViewHolder(view)
+        return let {
+            val inflater = LayoutInflater.from(parent.context)
+            val view = inflater.inflate(if (viewType == TYPE_NO_LAYOUT) R.layout.layout_space else viewType, parent, false)
+            CommonViewHolder(view, parent)
+        }
+
+
     }
 
-    override fun onBindViewHolder(holder: CommonViewHolder, position: Int) {
+    fun notifyData(data: Any) {
+        this.data.withIndex().filter { data == it.value.getData() }.forEach { notifyItemChanged(it.index) }
+    }
+
+    override fun onBindViewHolder(holder: CommonViewHolder, position: Int, payloads: MutableList<Any>) {
         val item = getItem(position)
         if (isItemVisible(item)) {
             holder.itemView.visibility = View.VISIBLE
-            item?.bindData(this, holder, item.getData(), position, data)
+            attempt { item?.bindData(this, holder, item.getData(), position, data, payloads) }.error?.printStackTrace()
         } else {
             holder.itemView.visibility = View.GONE
         }
-        onDataBind?.invoke(position)
+        onDataBind?.invoke(holder, position)
     }
+
 
     override fun getItemCount(): Int {
         return data.size
@@ -79,10 +98,7 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
     }
 
     fun containsData(data: Any): Boolean {
-        this.data.forEach {
-            if (data == it.getData()) return true
-        }
-        return false
+        return this.data.any { data == it.getData() }
     }
 
     fun getData(index: Int): Any? {
@@ -117,6 +133,10 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
         this.data.remove(data)
     }
 
+    fun remove(index: Int) {
+        this.data.removeAt(index)
+    }
+
     fun remove(data: List<BaseItem>?) {
         if (data == null) return
         this.data.removeAll(data)
@@ -126,9 +146,12 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
         data.clear()
     }
 
-
-    fun getSource(): List<BaseItem> {
+    fun getData(): List<BaseItem> {
         return data.toList()
+    }
+
+    fun getSource(): List<Any> {
+        return data.map { it.getData() }
     }
 
     fun replace(data: BaseItem?, index: Int) {
@@ -177,50 +200,86 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
         return this.data.indexOf(data)
     }
 
-    open class CommonViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    open class CommonViewHolder(itemView: View, parent: ViewGroup? = null) : RecyclerView.ViewHolder(itemView) {
+        private var parentRef: WeakReference<View>? = null
+        private var activityRef: WeakReference<Activity>? = null
+        private var lifecycleOwnerRef: WeakReference<LifecycleOwner>? = null
 
-        private var map: ArrayMap<Int, View>? = null
-        private val DEFAULT_KEY by lazy {
-            "default_key"
-        }
-        private val tags by lazy {
-            ArrayMap<Any, Any?>()
+        init {
+            parent?.let {
+                parentRef = WeakReference(parent)
+                val activity = ActivityFinder.find(parent)
+                if (activity != null) activityRef = WeakReference(activity)
+                val lifecycleOwner = LifecycleOwnerFinder.find(parent)
+                if (lifecycleOwner != null) lifecycleOwnerRef = WeakReference(lifecycleOwner)
+            }
         }
 
-        fun setTag(tag: Any) {
-            tags[DEFAULT_KEY] = tag
+        private val map by lazy {
+            mutableMapOf<Int, View>()
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        private fun getTags(): MutableMap<Any, Any> {
+            return itemView.getTag(R.id.holder_tag) as? MutableMap<Any, Any> ?: mutableMapOf()
         }
 
         fun setTag(key: Any, tag: Any?) {
-            if (tag == null) tags.remove(key)
-            else tags[key] = tag
+            val map = getTags()
+            if (tag == null) map.remove(key)
+            else map[key] = tag
+            itemView.setTag(R.id.holder_tag, map)
         }
 
-        fun getTag(): Any? {
-            return tags[DEFAULT_KEY]
+        @Suppress("UNCHECKED_CAST")
+        fun <T> getTag(key: Any, defaultValve: T): T {
+            val map = getTags()
+            return map[key] as? T ?: defaultValve
         }
 
-        fun getTag(key: Any): Any? {
-            return tags[key]
+        @Suppress("UNCHECKED_CAST")
+        fun <T> getTag(key: Any): T? {
+            val map = getTags()
+            return map[key] as? T
+        }
+
+        fun getLifecycleOwner(): LifecycleOwner? {
+            return lifecycleOwnerRef?.get() ?: LifecycleOwnerFinder.find(parentRef?.get()).apply {
+                if (this != null) {
+                    lifecycleOwnerRef = WeakReference(this)
+                }
+            }
+        }
+
+        fun addLifeCycleObserver(observer: LifecycleObserver) {
+            getLifecycleOwner()?.lifecycle?.addObserver(observer)
+        }
+
+        fun getActivity(): Activity? {
+            return activityRef?.get() ?: ActivityFinder.find(parentRef?.get()).apply {
+                if (this != null) {
+                    activityRef = WeakReference(this)
+                }
+            }
         }
 
         @Suppress("UNCHECKED_CAST")
         fun <T : View> getView(id: Int): T? {
-            if (map == null) map = ArrayMap()
-            var view: View? = map!![id]
+            var view: View? = map[id]
             if (view == null) {
                 view = itemView.findViewById(id)
-                if (view != null) map!![id] = view
+                if (view != null) map[id] = view
             }
-            return view as T?
+            return view as? T
         }
 
         fun getContext(): Context {
             return itemView.context
         }
 
+
         fun getRecyclerView(): RecyclerView? {
-            return itemView.parent as? RecyclerView
+            return parentRef?.get() as? RecyclerView
         }
     }
 }

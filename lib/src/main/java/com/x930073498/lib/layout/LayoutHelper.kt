@@ -5,6 +5,7 @@ import android.arch.lifecycle.DefaultLifecycleObserver
 import android.arch.lifecycle.LifecycleOwner
 import android.support.v4.app.Fragment
 import android.view.View
+import com.x930073498.lib.finder.LifecycleOwnerFinder
 
 /**
  * Created by x930073498 on 2018/12/24.
@@ -19,6 +20,11 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
 
     fun setId(id: String) {
         this.id = id
+        container[id]?.let {
+            it.id?.run {
+                push(this, it.data)
+            } ?: push(it.data)
+        }
     }
 
     private var tag: Any? = null
@@ -91,12 +97,19 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
     }
 
     private fun getInternalLifecycleOwner(): LifecycleOwner? {
-       return null
+        return (tag as? View)?.run {
+            LifecycleOwnerFinder.find(this)
+        } ?: LifecycleOwnerFinder.find(contentView)
     }
 
     companion object {
+        data class Data(internal val id: String?, internal val data: Any?)
+
         private val list by lazy {
             mutableListOf<LayoutHelper>()
+        }
+        private val container by lazy {
+            mutableMapOf<String, Data>()
         }
 
         fun destroy(any: Any) {
@@ -105,6 +118,14 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
 
         fun destroyById(id: String) {
             get(id)?.destroy()
+        }
+
+        fun push(helperId: String, id: String, data: Any?) {
+            get(helperId)?.push(id, data) ?: container.put(helperId, Data(id, data))
+        }
+
+        fun push(helperId: String, data: Any?) {
+            get(helperId)?.push(data) ?: container.put(helperId, Data(null, data))
         }
 
         @Synchronized

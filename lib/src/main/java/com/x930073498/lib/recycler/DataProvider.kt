@@ -5,7 +5,7 @@ package com.x930073498.lib.recycler
  */
 
 interface DataProvider{
-    fun getData(): Any? {
+    fun getData(): Any {
         return this
     }
 }

@@ -1,5 +1,6 @@
 package com.x930073498.layoutadapter
 
+import android.util.Log
 import android.widget.TextView
 import com.x930073498.lib.layout.LayoutAdapter
 import com.x930073498.lib.layout.LayoutHelper
@@ -16,7 +17,7 @@ class TestIntListLayoutItem : LayoutItem {
     }
 
     override fun bind(helper: LayoutHelper, adapter: LayoutAdapter, holder: LayoutHolder, data: Any?, id: String, items: List<LayoutItem>) {
-        println(javaClass)
+        Log.e("test", "enter this line 1")
     }
 
 

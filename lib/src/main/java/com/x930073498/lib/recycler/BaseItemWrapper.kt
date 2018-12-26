@@ -2,20 +2,18 @@ package com.x930073498.lib.recycler
 
 import android.support.v7.widget.RecyclerView
 
-import java.util.ArrayList
-
 /**
  * Created by x930073498 on 2018/8/21.
  */
 
-class BaseItemWrapper private constructor(private val data: Any?, private val layout: LayoutId, private val dataBinder: DataBinder? = null, private val visible: VisibleProvider? = null) : BaseItem {
+class BaseItemWrapper private constructor(private val data: Any, private val layout: LayoutId, private val dataBinder: DataBinder? = null, private val visible: VisibleProvider? = null) : BaseItem {
 
 
-    override fun bindData(adapter: RecyclerView.Adapter<*>, holder: CommonAdapter.CommonViewHolder, data: Any?, position: Int, source: List<BaseItem>) {
-        dataBinder?.bindData(adapter, holder, data, position, source)
+    override fun bindData(adapter: RecyclerView.Adapter<*>, holder: CommonAdapter.CommonViewHolder, data: Any?, position: Int, source: List<BaseItem>, payloads: List<Any>) {
+        dataBinder?.bindData(adapter, holder, data, position, source,payloads)
     }
 
-    override fun getData(): Any? {
+    override fun getData(): Any {
         return data
 
     }
@@ -28,43 +26,38 @@ class BaseItemWrapper private constructor(private val data: Any?, private val la
         return layout.layout(position, data, source)
     }
 
+    override fun toString(): String {
+        return "BaseItemWrapper(data=$data, layout=$layout, dataBinder=$dataBinder, visible=$visible)"
+    }
+
     companion object {
 
-        fun <T> wrap(data: T, layout: LayoutId, dataBinder: DataBinder? = null, visible: VisibleProvider? = null): BaseItem {
+        fun <T:Any> wrap(data: T, layout: LayoutId, dataBinder: DataBinder? = null, visible: VisibleProvider? = null): BaseItem {
             return BaseItemWrapper(data, layout, dataBinder, visible)
         }
 
-        fun <T> wrap(data: T, item: BaseItem): BaseItem {
+        fun <T:Any> wrap(data: T, item: BaseItem): BaseItem {
             return BaseItemWrapper(data, item, item, item)
         }
 
-        fun <T> wrap(data: List<T>?, layout: LayoutId, dataBinder: DataBinder? = null, visible: VisibleProvider? = null): List<BaseItem> {
-            val result = ArrayList<BaseItem>()
-            if (data == null) return result
-            for (temp in data) {
-                result.add(wrap(temp, layout, dataBinder, visible))
-            }
-            return result
+        fun <T:Any> wrap(data: List<T>, layout: LayoutId, dataBinder: DataBinder? = null, visible: VisibleProvider? = null): List<BaseItem> {
+            return data.map { wrap(it,layout, dataBinder,visible) }
         }
 
-        fun <T> wrap(data: List<T>, item: BaseItem): List<BaseItem> {
+        fun <T:Any> wrap(data: List<T>, item: BaseItem): List<BaseItem> {
             return wrap(data,item,item,item)
         }
 
-        fun <T> wrapCheckType(data: List<T>?, layout: LayoutId, dataBinder: DataBinder? = null, visible: VisibleProvider? = null): List<BaseItem> {
-            val result = ArrayList<BaseItem>()
-            if (data == null) return result
-            for (temp in data) {
-                if (temp is BaseItem) {
-                    result.add(temp)
-                } else
-                    result.add(wrap(temp, layout, dataBinder, visible))
+        fun <T:Any> wrapCheckType(data: List<T>, layout: LayoutId, dataBinder: DataBinder? = null, visible: VisibleProvider? = null): List<BaseItem> {
+            return data.map {
+                if (it is BaseItem) it
+                else wrap(it, layout, dataBinder, visible)
             }
-            return result
         }
 
-        fun <T> wrapCheckType(data: List<T>?, item: BaseItem): List<BaseItem> {
+        fun <T:Any> wrapCheckType(data: List<T>, item: BaseItem): List<BaseItem> {
             return wrapCheckType(data, item, item, item)
         }
     }
+
 }
