@@ -238,6 +238,12 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
         }
 
         @Suppress("UNCHECKED_CAST")
+        fun <T> getTag(key: Any, defaultValve: () -> T): T {
+            val map = getTags()
+            return map[key] as? T ?: defaultValve()
+        }
+        
+        @Suppress("UNCHECKED_CAST")
         fun <T> getTag(key: Any): T? {
             val map = getTags()
             return map[key] as? T

@@ -1,12 +1,9 @@
-package com.x930073498.layoutadapter
+package com.x930073498.layoutadapter.vm
 
-import android.util.Log
-import android.widget.TextView
 import com.x930073498.lib.layout.LayoutAdapter
 import com.x930073498.lib.layout.LayoutHelper
 import com.x930073498.lib.layout.LayoutHolder
 import com.x930073498.lib.layout.LayoutItem
-import java.lang.reflect.Type
 
 /**
  * Created by x930073498 on 2018/12/25.

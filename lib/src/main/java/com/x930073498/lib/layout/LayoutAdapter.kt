@@ -20,16 +20,18 @@ class LayoutAdapter internal constructor() {
     internal fun getItems(): List<LayoutItem> {
         return map.map { it.value }
     }
-    fun getIds():List<String>{
-       return map.map { it.key }
+
+    fun getIds(): List<String> {
+        return map.map { it.key }
     }
 
     @Suppress("UNCHECKED_CAST")
     internal fun push(id: String, data: Any?) {
-        map[id]?.let {
-            it.takeIf {
-                it.filter(data)
-            }?.run { getHolder(id).push(id, data, it) }
+        map[id]?.let { item ->
+            val result = item.parse(data)
+            item.takeIf {
+                it.filter(result)
+            }?.run { getHolder(id).push(id, result, item) }
 
         }
     }
@@ -44,8 +46,13 @@ class LayoutAdapter internal constructor() {
 
     @Suppress("UNCHECKED_CAST")
     internal fun push(data: Any?) {
-        map.filter { it.value.filter(data) }
-                .map { getHolder(it.key).push(it.key, data, it.value) }
+        map.map {
+            it to it.value.parse(data)
+        }
+                .filter {
+                    it.first.value.filter(it.second)
+                }
+                .map { getHolder(it.first.key).push(it.first.key, it.second, it.first.value) }
     }
 
     internal fun register(id: String, item: LayoutItem) {

@@ -87,7 +87,7 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
     private fun getInternalLifecycleOwner(): LifecycleOwner? {
         return (tag as? View)?.run {
             LifecycleOwnerFinder.find(this)
-        } ?: LifecycleOwnerFinder.find(view.getView())
+        } ?: LifecycleOwnerFinder.find(view.provideView())
     }
 
     companion object {
@@ -116,6 +116,10 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
             get(helperId)?.push(data) ?: container.put(helperId, Data(null, data))
         }
 
+        fun pull(helperId: String) {
+            get(helperId)?.pull()
+        }
+
         fun push(helper: LayoutHelper, id: String, data: Any?) {
             helper.push(id, data)
         }
@@ -127,7 +131,7 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
         @Synchronized
         fun attach(activity: Activity): LayoutHelper {
             return list.find { it.tag == activity } ?: LayoutHelper(object : ViewProvider {
-                override fun getView(): View {
+                override fun provideView(): View {
                     return activity.findViewById<View>(android.R.id.content)
                 }
             }, LayoutAdapter(), true).apply {
@@ -146,7 +150,7 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
         @Synchronized
         fun attach(view: View): LayoutHelper {
             return list.find { it.tag == view } ?: LayoutHelper(object : ViewProvider {
-                override fun getView(): View {
+                override fun provideView(): View {
                     return view
                 }
             }, LayoutAdapter(), true).apply {
@@ -167,7 +171,7 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
         @Synchronized
         fun attach(fragment: Fragment): LayoutHelper {
             return list.find { it.tag == fragment } ?: LayoutHelper(object : ViewProvider {
-                override fun getView(): View {
+                override fun provideView(): View {
                     return fragment.view as View
                 }
             }, LayoutAdapter(), true).apply {
@@ -187,15 +191,21 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
                     ?: LayoutHelper(view, LayoutAdapter(), false).apply {
                         tag = view
                         list.add(this)
-                        view.getView().addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-                            override fun onViewDetachedFromWindow(v: View?) {
+
+                        getLifecycleOwner()?.lifecycle?.addObserver(object : DefaultLifecycleObserver {
+                            override fun onDestroy(owner: LifecycleOwner) {
                                 destroy()
                             }
-
-                            override fun onViewAttachedToWindow(v: View?) {
-                            }
-
                         })
+                                ?: view.provideView().addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                                    override fun onViewDetachedFromWindow(v: View?) {
+                                        destroy()
+                                    }
+
+                                    override fun onViewAttachedToWindow(v: View?) {
+                                    }
+
+                                })
                     }
         }
 
