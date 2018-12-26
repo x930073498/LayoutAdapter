@@ -20,7 +20,11 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
 
     fun setId(id: String) {
         this.id = id
+    }
+
+    fun pull() {
         container[id]?.let {
+            container.remove(id)
             it.id?.run {
                 push(this, it.data)
             } ?: push(it.data)
@@ -28,8 +32,6 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
     }
 
     private var tag: Any? = null
-    private val contentView: View
-        get() = view.getView()
 
 
     fun getAdapter(): LayoutAdapter {
@@ -74,22 +76,8 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
         return id
     }
 
-    private fun addLifecycle() {
-        if (hasLifecycle) return
-        contentView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View?) {
-            }
-
-            override fun onViewDetachedFromWindow(v: View?) {
-                destroy()
-            }
-        })
-    }
-
     internal fun getViewProvider(): ViewProvider {
-        return view.apply {
-            addLifecycle()
-        }
+        return view
     }
 
     internal fun getLifecycleOwner(): LifecycleOwner? {
@@ -99,7 +87,7 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
     private fun getInternalLifecycleOwner(): LifecycleOwner? {
         return (tag as? View)?.run {
             LifecycleOwnerFinder.find(this)
-        } ?: LifecycleOwnerFinder.find(contentView)
+        } ?: LifecycleOwnerFinder.find(view.getView())
     }
 
     companion object {
@@ -126,6 +114,14 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
 
         fun push(helperId: String, data: Any?) {
             get(helperId)?.push(data) ?: container.put(helperId, Data(null, data))
+        }
+
+        fun push(helper: LayoutHelper, id: String, data: Any?) {
+            helper.push(id, data)
+        }
+
+        fun push(helper: LayoutHelper, data: Any?) {
+            helper.push(data)
         }
 
         @Synchronized
@@ -172,7 +168,7 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
         fun attach(fragment: Fragment): LayoutHelper {
             return list.find { it.tag == fragment } ?: LayoutHelper(object : ViewProvider {
                 override fun getView(): View {
-                    return fragment.view!!
+                    return fragment.view as View
                 }
             }, LayoutAdapter(), true).apply {
                 fragment.lifecycle.addObserver(object : DefaultLifecycleObserver {
@@ -191,6 +187,15 @@ class LayoutHelper private constructor(private val view: ViewProvider, private v
                     ?: LayoutHelper(view, LayoutAdapter(), false).apply {
                         tag = view
                         list.add(this)
+                        view.getView().addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                            override fun onViewDetachedFromWindow(v: View?) {
+                                destroy()
+                            }
+
+                            override fun onViewAttachedToWindow(v: View?) {
+                            }
+
+                        })
                     }
         }
 
