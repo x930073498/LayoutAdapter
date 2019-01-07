@@ -9,10 +9,11 @@ import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import com.x930073498.RegisterRepository
 import com.x930073498.lib.R
 import com.x930073498.lib.finder.ActivityFinder
 import com.x930073498.lib.finder.LifecycleOwnerFinder
-import org.jetbrains.anko.attempt
+import com.x930073498.lib.recycler.BaseItemRepository.ID
 import java.lang.ref.WeakReference
 
 
@@ -21,6 +22,8 @@ import java.lang.ref.WeakReference
  */
 
 class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
+
+
     override fun onBindViewHolder(p0: CommonViewHolder, p1: Int) {
         onBindViewHolder(p0, p1, arrayListOf())
     }
@@ -43,6 +46,10 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
 
 
     companion object {
+        init {
+            RegisterRepository.run(ID)
+        }
+
         const val TYPE_NO_LAYOUT = -1
     }
 
@@ -71,7 +78,7 @@ class CommonAdapter : RecyclerView.Adapter<CommonAdapter.CommonViewHolder>() {
         val item = getItem(position)
         if (isItemVisible(item)) {
             holder.itemView.visibility = View.VISIBLE
-            attempt { item?.bindData(this, holder, item.getData(), position, data, payloads) }.error?.printStackTrace()
+            runCatching { item?.bindData(this, holder, item.getData(), position, data, payloads) }.exceptionOrNull()?.printStackTrace()
         } else {
             holder.itemView.visibility = View.GONE
         }

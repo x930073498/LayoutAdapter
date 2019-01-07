@@ -63,7 +63,7 @@ class LayoutHolder internal constructor(private val view: ViewProvider, private 
 
     @Suppress("UNCHECKED_CAST")
     private fun bind(wrapper: Wrapper) {
-        wrapper.item.bind(helper, adapter, this, wrapper.data, wrapper.id, adapter.getItems())
+        runCatching { wrapper.item.bind(helper, adapter, this, wrapper.data, wrapper.id, adapter.getItems()) }.exceptionOrNull()?.printStackTrace()
     }
 
     fun getView(): View {

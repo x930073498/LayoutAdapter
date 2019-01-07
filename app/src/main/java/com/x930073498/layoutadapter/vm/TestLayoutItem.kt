@@ -30,7 +30,7 @@ class TestLayoutItem : LayoutItem {
                     helper.push("点击${count++}")
                 }
                 holder.setTag("data", data)
-                holder.getTag(it){
+                holder.getTag<LifecycleObserver>(it){
                     object : DefaultLifecycleObserver {
                         override fun onResume(owner: LifecycleOwner) {
                             Toast.makeText(holder.getContext(), holder.getTag<String>("data"), Toast.LENGTH_SHORT).show()
